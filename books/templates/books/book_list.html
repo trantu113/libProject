@@ -25,8 +25,7 @@
 <div class="container mt-4">
     <div class="d-flex justify-content-between align-items-center mb-3">
         <h2>Danh Mục Sách</h2>
-        <button class="btn btn-primary"><i class="bi bi-plus-circle"></i> Thêm Sách Mới</button>
-    </div>
+        <a href="{% url 'bookAdd' %}" class="btn btn-primary"><i class="bi bi-plus-circle"></i> Thêm Sách Mới</a></div>
 
     <!-- Bảng danh sách sách -->
     <div class="card shadow-sm">
@@ -42,29 +41,25 @@
                 </tr>
                 </thead>
                 <tbody>
+                {% for book in book_list %}
                 <tr>
-                    <td>Rừng Na Uy</td>
-                    <td>Haruki Murakami</td>
-                    <td>Văn học</td>
-                    <td><span class="badge bg-success">Còn 3 cuốn</span></td>
+                    <td><strong>{{ book.title }}</strong></td>
+                    <td>{{ book.author }}</td>
+                    <td>{{ book.category }}</td>
+                    <td>
+                        <span class="badge bg-success">Còn {{ book.available }} cuốn</span>
+                    </td>
                     <td>
                         <button class="btn btn-sm btn-info text-white">Mượn sách</button>
                         <button class="btn btn-sm btn-warning">Sửa</button>
                         <button class="btn btn-sm btn-danger">Xóa</button>
                     </td>
                 </tr>
-
+                {% empty %}
                 <tr>
-                    <td>Trại Súc Vật</td>
-                    <td>George Orwell</td>
-                    <td>Văn học</td>
-                    <td><span class="badge bg-success">Còn 1 cuốn</span></td>
-                    <td>
-                        <button class="btn btn-sm btn-info text-white">Mượn sách</button>
-                        <button class="btn btn-sm btn-warning">Sửa</button>
-                        <button class="btn btn-sm btn-danger">Xóa</button>
-                    </td>
+                    <td colspan="5" class="text-center text-muted">Hiện chưa có cuốn sách nào trong kho :3</td>
                 </tr>
+                {% endfor %}
                 </tbody>
             </table>
         </div>
