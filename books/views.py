@@ -1,4 +1,6 @@
 from bson import ObjectId
+from django.contrib.auth import login
+from django.contrib.auth.forms import UserCreationForm
 from django.shortcuts import render, redirect
 
 from books.db import books_collection
@@ -82,3 +84,17 @@ def bookUpdate(request, book_id):
 
     book['id'] = str(book['_id'])
     return render(request, 'books/book_form.html', {'books': books})
+
+
+def register(request):
+    if request.method == 'POST':
+        form = UserCreationForm(request.POST)
+
+        if form.is_valid():
+            user = form.save()
+            login(request, user)
+            return redirect('books')
+    else:
+        form = UserCreationForm()
+
+    return render(request, 'registration/register.html', {'form': form})
