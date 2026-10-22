@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timezone
 
 from bson import ObjectId
 from bson.errors import InvalidId
@@ -33,7 +33,8 @@ def books(request):
 
     if (cacDieuKien):
         dieuKien = {'$and': cacDieuKien}
-    else: dieuKien = {}
+    else:
+        dieuKien = {}
 
     cursor = books_collection.find(dieuKien)  # lay du lieu tu mongodb
 
@@ -45,6 +46,7 @@ def books(request):
     context = {'book_list': book_list, 'q': q, 'con_hang': con_hang}  # dong goi gui sang html
 
     return render(request, 'books/book_list.html', context)
+
 
 @staff_member_required
 def bookAdd(request):
@@ -64,11 +66,13 @@ def bookAdd(request):
 
     return render(request, 'books/book_form.html')  # vao trang book_form
 
+
 @staff_member_required
 def bookDelete(request, book_id):
     if request.method == 'POST':  # nguoi dung bam "delete"
         books_collection.delete_one({'_id': ObjectId(book_id)})  # lenh delete_one (ObjectId(book_id)
     return redirect('books')
+
 
 @staff_member_required
 def bookUpdate(request, book_id):
@@ -90,7 +94,7 @@ def bookUpdate(request, book_id):
         return redirect('books')
 
     book['id'] = str(book['_id'])
-    return render(request, 'books/book_form.html', {'books': books})
+    return render(request, 'books/book_form.html', {'book': book})
 
 
 def register(request):
@@ -105,6 +109,7 @@ def register(request):
         form = UserCreationForm()
 
     return render(request, 'registration/register.html', {'form': form})
+
 
 @login_required
 def borrowRequest(request, book_id):
@@ -136,7 +141,19 @@ def borrowRequest(request, book_id):
             'book_id': book['_id'],
             'book_title': book['title'],
             'status': 'pending',
-            'requested_at': datetime.now(),
+            'requested_at': datetime.now(timezone.utc), #luu file ko dung mui gio Viet Nam
         })
         messages.success(request, 'Đã gửi yêu cầu.')
     return redirect('books')
+
+
+@login_required
+def myBooks(request):
+    cursor = borrows_collection.find({'user_id': request.user.id}).sort('requested_at', -1)
+
+    borrow_list = []
+    for item in cursor:
+        item['id'] = str(item['_id'])
+        borrow_list.append(item)
+
+    return render(request, 'books/my_books.html', {'borrow_list': borrow_list})
