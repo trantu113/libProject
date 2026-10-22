@@ -1,9 +1,16 @@
+from datetime import datetime
+
 from bson import ObjectId
+from bson.errors import InvalidId
+from django.contrib import messages
+from django.contrib.admin.views.decorators import staff_member_required
 from django.contrib.auth import login
+from django.contrib.auth.decorators import login_required
 from django.contrib.auth.forms import UserCreationForm
+from django.http import Http404
 from django.shortcuts import render, redirect
 
-from books.db import books_collection
+from books.db import books_collection, borrows_collection
 
 
 def books(request):
@@ -39,7 +46,7 @@ def books(request):
 
     return render(request, 'books/book_list.html', context)
 
-
+@staff_member_required
 def bookAdd(request):
     if request.method == 'POST':  # nguoi dung bam "save"
         try:
@@ -57,13 +64,13 @@ def bookAdd(request):
 
     return render(request, 'books/book_form.html')  # vao trang book_form
 
-
+@staff_member_required
 def bookDelete(request, book_id):
     if request.method == 'POST':  # nguoi dung bam "delete"
         books_collection.delete_one({'_id': ObjectId(book_id)})  # lenh delete_one (ObjectId(book_id)
     return redirect('books')
 
-
+@staff_member_required
 def bookUpdate(request, book_id):
     book = books_collection.find_one({'_id': ObjectId(book_id)})
 
@@ -98,3 +105,38 @@ def register(request):
         form = UserCreationForm()
 
     return render(request, 'registration/register.html', {'form': form})
+
+@login_required
+def borrowRequest(request, book_id):
+    if request.method != 'POST':
+        return redirect('books')
+
+    try:
+        book = books_collection.find_one({'_id': ObjectId(book_id)})
+    except InvalidId:
+        raise Http404
+    if book is None:
+        raise Http404
+
+    daCo = borrows_collection.find_one(
+        {
+            'user_id': request.user.id,
+            'book_id': book['_id'],
+            'status': {'$in': ['pending', 'borrowed']},
+        })
+
+    if daCo:
+        messages.warning(request, 'Bạn đã gửi yêu cầu hoặc đang mượn quyển này.')
+    elif book['available'] <= 0:
+        messages.error(request, "Hiện đã hết sách này!")
+    else:
+        borrows_collection.insert_one({
+            'user_id': request.user.id,
+            'username': request.user.username,
+            'book_id': book['_id'],
+            'book_title': book['title'],
+            'status': 'pending',
+            'requested_at': datetime.now(),
+        })
+        messages.success(request, 'Đã gửi yêu cầu.')
+    return redirect('books')

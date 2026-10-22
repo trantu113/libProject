@@ -31,11 +31,24 @@
     </div>
 </nav>
 
+{% if messages %}
+<div class="container mt-3">
+    {% for message in messages %}
+    <div class="alert alert-{% if message.tags == 'error' %}danger{% else %}{{ message.tags }}{% endif %} mb-2">
+        {{ message }}
+    </div>
+    {% endfor %}
+</div>
+{% endif %}
+
 <!-- Main Content -->
 <div class="container mt-4">
     <div class="d-flex justify-content-between align-items-center mb-3">
         <h2>Danh Mục Sách</h2>
-        <a href="{% url 'bookAdd' %}" class="btn btn-primary"><i class="bi bi-plus-circle"></i> Thêm Sách Mới</a></div>
+        {% if user.is_staff %}
+        <a href="{% url 'bookAdd' %}" class="btn btn-primary"><i class="bi bi-plus-circle"></i> Thêm Sách Mới</a>
+        {% endif %}
+    </div>
 
     <!-- tìm sách và tác giả -->
     <form method="get" class="row g-2 mb-3 align-items-center">
@@ -79,13 +92,28 @@
                         <span class="badge bg-success">Còn {{ book.available }} cuốn</span>
                     </td>
                     <td>
-                        <button class="btn btn-sm btn-info text-white">Mượn sách</button>
+                        {% if user.is_authenticated %}
+                        {% if book.available > 0 %}
+                        <form method="post" action="{% url 'borrowRequest' book.id %}" class="d-inline">
+                            {% csrf_token %}
+                            <button class="btn btn-sm btn-info text-white">Mượn sách</button>
+                        </form>
+                        {% else %}
+                        <button class="btn btn-sm btn-secondary" disabled>Hết sách</button>
+                        {% endif %}
+                        {% else %}
+                        <a href="{% url 'login' %}?next={{ request.path }}" class="btn btn-sm btn-info text-white">Mượn
+                            sách</a>
+                        {% endif %}
+                        {% if user.is_staff %}
                         <a href="{% url 'bookUpdate' book.id %}" class="btn btn-sm btn-warning">Sửa</a>
                         <form method="post" action="{% url 'bookDelete' book.id %}" class="d-inline"
                               onsubmit="return confirm('Bạn có chắc muốn xoá sách này không?');">
                             {% csrf_token %}
                             <button class="btn btn-sm btn-danger">Xóa</button>
                         </form>
+                        {% endif %}
+
                     </td>
                 </tr>
                 {% empty %}
