@@ -27,6 +27,25 @@
         <h2>Danh Mục Sách</h2>
         <a href="{% url 'bookAdd' %}" class="btn btn-primary"><i class="bi bi-plus-circle"></i> Thêm Sách Mới</a></div>
 
+    <!-- tìm sách và tác giả -->
+    <form method="get" class="row g-2 mb-3 align-items-center">
+        <div class="col">
+            <input name="q" value="{{ q }}" class="form-control"
+                   placeholder="Tìm theo tên sách hoặc tác giả...">
+        </div>
+        <div class="col-auto">
+            <div class="form-check">
+                <input class="form-check-input" type="checkbox" name="con_hang" value="1"
+                       id="conHang" {% if con_hang %}checked{% endif %}>
+                <label class="form-check-label" for="conHang">Còn hàng</label>
+            </div>
+        </div>
+        <div class="col-auto">
+            <button class="btn btn-dark"><i class="bi bi-search"></i> Tìm</button>
+            <a href="{% url 'books' %}" class="btn btn-outline-secondary">Xóa lọc</a>
+        </div>
+    </form>
+
     <!-- Bảng danh sách sách -->
     <div class="card shadow-sm">
         <div class="card-body p-0">
@@ -51,13 +70,20 @@
                     </td>
                     <td>
                         <button class="btn btn-sm btn-info text-white">Mượn sách</button>
-                        <button class="btn btn-sm btn-warning">Sửa</button>
-                        <button class="btn btn-sm btn-danger">Xóa</button>
+                        <a href="{% url 'bookUpdate' book.id %}" class="btn btn-sm btn-warning">Sửa</a>
+                        <form method="post" action="{% url 'bookDelete' book.id %}" class="d-inline"
+                              onsubmit="return confirm('Bạn có chắc muốn xoá sách này không?');">
+                            {% csrf_token %}
+                            <button class="btn btn-sm btn-danger">Xóa</button>
+                        </form>
                     </td>
                 </tr>
                 {% empty %}
                 <tr>
-                    <td colspan="5" class="text-center text-muted">Hiện chưa có cuốn sách nào trong kho :3</td>
+                    <td colspan="5" class="text-center text-muted">
+                        {% if q %}Không tìm thấy sách nào với "{{ q }}"{% else %}Hiện chưa có cuốn sách nào trong kho
+                        :3{% endif %}
+                    </td>
                 </tr>
                 {% endfor %}
                 </tbody>
