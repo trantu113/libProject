@@ -1,4 +1,4 @@
-from datetime import datetime, timezone
+from datetime import datetime, timezone, tzinfo, timedelta
 
 from bson import ObjectId
 from bson.errors import InvalidId
@@ -12,6 +12,9 @@ from django.shortcuts import render, redirect
 
 from books.db import books_collection, borrows_collection
 
+dt_utc = datetime.fromtimestamp(1700000000, timezone.utc)
+vietnam_tz = timezone(timedelta(hours=7))
+dt_vn = dt_utc.astimezone(vietnam_tz)
 
 def books(request):
     q = request.GET.get('q', '').strip()
@@ -132,8 +135,8 @@ def borrowRequest(request, book_id):
 
     if daCo:
         messages.warning(request, 'Bạn đã gửi yêu cầu hoặc đang mượn quyển này.')
-    elif book['available'] <= 0:
-        messages.error(request, "Hiện đã hết sách này!")
+    # elif book['available'] <= 0:
+    # messages.error(request, "Hiện đã hết sách này!")
     else:
         borrows_collection.insert_one({
             'user_id': request.user.id,
@@ -141,7 +144,7 @@ def borrowRequest(request, book_id):
             'book_id': book['_id'],
             'book_title': book['title'],
             'status': 'pending',
-            'requested_at': datetime.now(timezone.utc), #luu file ko dung mui gio Viet Nam
+            'requested_at': datetime.now(vietnam_tz),  # luu file ko dung mui gio Viet Nam
         })
         messages.success(request, 'Đã gửi yêu cầu.')
     return redirect('books')
