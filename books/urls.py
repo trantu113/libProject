@@ -9,4 +9,9 @@ urlpatterns = [
     path('update/<str:book_id>/',views.bookUpdate, name='bookUpdate'),
     path('borrow/<str:book_id>/', views.borrowRequest, name='borrowRequest'),
     path('my-books/', views.myBooks, name='myBooks'),
+    path('staff/borrows/', views.borrowManage, name='borrowManage'),
+    path('staff/borrows/<str:borrow_id>/approve/', views.borrowApprove, name='borrowApprove'),
+    path('staff/borrows/<str:borrow_id>/reject/', views.borrowReject, name='borrowReject'),
+    path('staff/borrows/<str:borrow_id>/return/', views.borrowReturn, name='borrowReturn'),
+    path('staff/history/', views.borrowHistory, name='borrowHistory'),
 ]

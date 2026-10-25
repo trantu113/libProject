@@ -18,6 +18,9 @@
 
             {% if user.is_authenticated %}
             <a class="nav-link" href="{% url 'myBooks' %}">Sách đang mượn</a>
+            {% if user.is_staff %}
+            <a class="nav-link" href="{% url 'borrowManage' %}">Duyệt phiếu</a>
+            {% endif %}
             <span class="navbar-text ms-2 text-white">Xin chào, {{ user.username }}</span>
             <form method="post" action="{% url 'logout' %}" class="d-inline ms-2">
                 {% csrf_token %}

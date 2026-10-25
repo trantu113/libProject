@@ -1,4 +1,5 @@
-from datetime import datetime, timezone, tzinfo, timedelta
+import re
+from datetime import datetime, timezone, timedelta
 
 from bson import ObjectId
 from bson.errors import InvalidId
@@ -12,9 +13,11 @@ from django.shortcuts import render, redirect
 
 from books.db import books_collection, borrows_collection
 
-dt_utc = datetime.fromtimestamp(1700000000, timezone.utc)
+# dt_utc = datetime.fromtimestamp(1700000000, timezone.utc)
 vietnam_tz = timezone(timedelta(hours=7))
-dt_vn = dt_utc.astimezone(vietnam_tz)
+
+
+# dt_vn = dt_utc.astimezone(vietnam_tz)
 
 def books(request):
     q = request.GET.get('q', '').strip()
@@ -24,10 +27,11 @@ def books(request):
     cacDieuKien = []
 
     if q:  # neu q = true
+        safe_q = re.escape(q)
         cacDieuKien.append({
             '$or': [
-                {'title': {'$regex': q, '$options': 'i'}},
-                {'author': {'$regex': q, '$options': 'i'}},
+                {'title': {'$regex': safe_q, '$options': 'i'}},
+                {'author': {'$regex': safe_q, '$options': 'i'}},
             ]
         })
 
@@ -79,6 +83,13 @@ def bookDelete(request, book_id):
 
 @staff_member_required
 def bookUpdate(request, book_id):
+    try:
+        book = books_collection.find_one({'_id': ObjectId(book_id)})
+    except InvalidId:
+        raise Http404
+    if book is None:
+        raise Http404
+
     book = books_collection.find_one({'_id': ObjectId(book_id)})
 
     if request.method == 'POST':
@@ -135,8 +146,8 @@ def borrowRequest(request, book_id):
 
     if daCo:
         messages.warning(request, 'Bạn đã gửi yêu cầu hoặc đang mượn quyển này.')
-    # elif book['available'] <= 0:
-    # messages.error(request, "Hiện đã hết sách này!")
+    elif book['available'] <= 0:
+        messages.error(request, "Hiện đã hết sách này!")
     else:
         borrows_collection.insert_one({
             'user_id': request.user.id,
@@ -154,9 +165,128 @@ def borrowRequest(request, book_id):
 def myBooks(request):
     cursor = borrows_collection.find({'user_id': request.user.id}).sort('requested_at', -1)
 
+    now = datetime.now(vietnam_tz)
     borrow_list = []
     for item in cursor:
         item['id'] = str(item['_id'])
+        item['overdue'] = (
+                item['status'] == 'borrowed'
+                and item.get('due_date') is not None
+                and item['due_date'] < now
+        )
         borrow_list.append(item)
 
     return render(request, 'books/my_books.html', {'borrow_list': borrow_list})
+
+
+@staff_member_required
+def borrowManage(request):
+    cursor = borrows_collection.find({'status': {'$in': ['pending', 'borrowed']}}).sort('requested_at', -1)
+
+    now = datetime.now(timezone.utc)
+    borrow_list = []
+    for item in cursor:
+        item['id'] = str(item['_id'])
+        item['overdue'] = (
+                item['status'] == 'borrowed'
+                and item.get('due_date') is not None
+                and item['due_date'] < now
+        )
+        borrow_list.append(item)
+
+    return render(request, 'books/borrow_manage.html', {'borrow_list': borrow_list})
+
+
+@staff_member_required
+def borrowApprove(request, borrow_id):
+    if request.method != 'POST':
+        return redirect('borrowManage')
+
+    try:
+        borrow = borrows_collection.find_one({'_id': ObjectId(borrow_id)})
+    except InvalidId:
+        raise Http404
+    if borrow is None:
+        raise Http404
+
+    if borrow['status'] != 'pending':
+        messages.warning(request, 'Phiếu này đã được xử lý rồi.')
+        return redirect('borrowManage')
+
+    book = books_collection.find_one_and_update(
+        {'_id': borrow['book_id'], 'available': {'$gt': 0}},
+        {'$inc': {'available': -1}},
+    )
+
+    if book is None:
+        messages.error(request, 'Sách đã hết, không thể duyệt phiếu này.')
+        return redirect('borrowManage')
+
+    now = datetime.now(timezone.utc)
+    due = now + timedelta(days=14)
+
+    borrows_collection.update_one(
+        {'_id': borrow['_id']},
+        {'$set': {
+            'status': 'borrowed',
+            'borrowed_at': now,
+            'due_date': due,
+        }},
+    )
+    messages.success(request, f'Đã duyệt phiếu "{borrow["book_title"]}" cho {borrow["username"]}.')
+    return redirect('borrowManage')
+
+
+@staff_member_required
+def borrowReject(request, borrow_id):
+    if request.method == 'POST':
+        borrows_collection.update_one(
+            {'_id': ObjectId(borrow_id), 'status': 'pending'},
+            {'$set': {'status': 'rejected'}},
+        )
+        messages.success(request, 'Đã từ chối phiếu.')
+    return redirect('borrowManage')
+
+
+@staff_member_required
+def borrowReturn(request, borrow_id):
+    if request.method != 'POST':
+        return redirect('borrowManage')
+
+    try:
+        borrow = borrows_collection.find_one({'_id': ObjectId(borrow_id)})
+    except InvalidId:
+        raise Http404
+    if borrow is None:
+        raise Http404
+
+    if borrow['status'] != 'borrowed':
+        messages.warning(request, 'Phiếu này không ở trạng thái mượn!!!!')
+        return redirect('borrowManage')
+
+    books_collection.update_one(
+        {'_id': borrow['book_id']},
+        {'$inc': {'available': 1}},
+    )
+
+    borrows_collection.update_one(
+        {'_id': borrow['_id']},
+        {'$set': {
+            'status': 'returned',
+            'returned_at': datetime.now(timezone.utc),
+        }},
+    )
+
+    messages.success(request, f'Đã nhận trả "{borrow["book_title"]}" từ {borrow["username"]}.')
+    return redirect('borrowManage')
+
+@staff_member_required
+def borrowHistory(request):
+    cursor = borrows_collection.find({'status': {'$in': ['returned', 'rejected']}}).sort('requested_at', -1)
+
+    history_list = []
+    for item in cursor:
+        item['id'] = str(item['_id'])
+        history_list.append(item)
+
+    return render(request, 'books/borrow_history.html', {'history_list': history_list})

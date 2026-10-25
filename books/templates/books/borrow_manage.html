@@ -1,0 +1,97 @@
+{% load tz %}
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <title>Duyệt phiếu mượn</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+</head>
+<body class="bg-light">
+
+<nav class="navbar navbar-expand-lg navbar-dark bg-dark">
+    <div class="container">
+        <a class="navbar-brand" href="{% url 'books' %}"><i class="bi bi-book-half"></i> Thư Viện</a>
+        <div class="navbar-nav ms-auto align-items-center">
+            <a class="nav-link" href="{% url 'books' %}">Tủ sách</a>
+            <a class="nav-link active" href="{% url 'borrowManage' %}">Duyệt phiếu</a>
+            <span class="navbar-text ms-2 text-white">Xin chào, {{ user.username }}</span>
+        </div>
+    </div>
+</nav>
+
+{% if messages %}
+<div class="container mt-3">
+    {% for message in messages %}
+    <div class="alert alert-{% if message.tags == 'error' %}danger{% else %}{{ message.tags }}{% endif %} mb-2">{{ message }}</div>
+    {% endfor %}
+</div>
+{% endif %}
+
+<div class="container mt-4">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <h2 class="mb-0">Duyệt phiếu mượn</h2>
+        <a href="{% url 'borrowHistory' %}" class="btn btn-outline-secondary btn-sm">Xem lịch sử</a>
+    </div>
+    <div class="card shadow-sm">
+        <div class="card-body p-0">
+            <table class="table table-hover table-striped align-middle mb-0">
+                <thead class="table-dark">
+                <tr>
+                    <th>Người mượn</th>
+                    <th>Tên sách</th>
+                    <th>Ngày gửi</th>
+                    <th>Hạn trả</th>
+                    <th>Trạng thái</th>
+                    <th>Hành động</th>
+                </tr>
+                </thead>
+                <tbody>
+                {% for item in borrow_list %}
+                <tr>
+                    <td>{{ item.username }}</td>
+                    <td><strong>{{ item.book_title }}</strong></td>
+                    <td>{{ item.requested_at|localtime|date:"d/m/Y H:i" }}</td>
+                    <td>{% if item.due_date %}{{ item.due_date|localtime|date:"d/m/Y" }}{% else %}-{% endif %}</td>
+                    <td>
+                        {% if item.status == 'pending' %}
+                        <span class="badge bg-warning text-dark">Chờ duyệt</span>
+                        {% elif item.overdue %}
+                        <span class="badge bg-danger">Quá hạn</span>
+                        {% else %}
+                        <span class="badge bg-primary">Đang mượn</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if item.status == 'pending' %}
+                        <form method="post" action="{% url 'borrowApprove' item.id %}" class="d-inline">
+                            {% csrf_token %}
+                            <button class="btn btn-sm btn-success">Duyệt</button>
+                        </form>
+                        <form method="post" action="{% url 'borrowReject' item.id %}" class="d-inline">
+                            {% csrf_token %}
+                            <button class="btn btn-sm btn-outline-danger">Từ chối</button>
+                        </form>
+                        {% else %}
+                        <form method="post" action="{% url 'borrowReturn' item.id %}" class="d-inline"
+                              onsubmit="return confirm('Xác nhận đã nhận lại sách?');">
+                            {% csrf_token %}
+                            <button class="btn btn-sm btn-dark">Nhận trả</button>
+                        </form>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="6" class="text-center text-muted py-4">Không có phiếu nào cần xử lý.</td>
+                </tr>
+                {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>

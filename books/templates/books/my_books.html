@@ -1,3 +1,4 @@
+{% load tz %}
 <!DOCTYPE html>
 <html lang="vi">
 <head>
@@ -34,28 +35,36 @@
                     <th>Tên Sách</th>
                     <th>Ngày gửi yêu cầu</th>
                     <th>Trạng thái</th>
+                    <th>Ngày mượn</th>
+                    <th>Hạn trả</th>
+
                 </tr>
                 </thead>
                 <tbody>
                 {% for item in borrow_list %}
                 <tr>
                     <td><strong>{{ item.book_title }}</strong></td>
-                    <td>{{ item.requested_at|date:"d/m/Y H:i" }}</td>
+                    <td>{{ item.requested_at|localtime|date:"d /m/Y H:i" }}</td>
                     <td>
                         {% if item.status == 'pending' %}
-                            <span class="badge bg-warning text-dark">Chờ duyệt</span>
+                        <span class="badge bg-warning text-dark">Chờ duyệt</span>
+                        {% elif item.overdue %}
+                        <span class="badge bg-danger">Quá hạn</span>
                         {% elif item.status == 'borrowed' %}
-                            <span class="badge bg-primary">Đang mượn</span>
+                        <span class="badge bg-primary">Đang mượn</span>
                         {% elif item.status == 'returned' %}
-                            <span class="badge bg-secondary">Đã trả</span>
+                        <span class="badge bg-secondary">Đã trả</span>
                         {% else %}
-                            <span class="badge bg-dark">{{ item.status }}</span>
+                        <span class="badge bg-dark">Bị Từ Chối</span>
                         {% endif %}
+                    <td>{% if item.borrowed_at %}{{ item.borrowed_at|localtime|date:"d/m/Y" }}{% else %}-{% endif %}
+                    </td>
+                    <td>{% if item.due_date %}{{ item.due_date|localtime|date:"d/m/Y" }}{% else %}-{% endif %}</td>
                     </td>
                 </tr>
                 {% empty %}
                 <tr>
-                    <td colspan="3" class="text-center text-muted py-4">
+                    <td colspan="5" class="text-center text-muted py-4">
                         Bạn chưa mượn cuốn nào. <a href="{% url 'books' %}">Xem tủ sách</a>
                     </td>
                 </tr>
