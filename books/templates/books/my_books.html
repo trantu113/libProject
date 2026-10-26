@@ -37,6 +37,7 @@
                     <th>Trạng thái</th>
                     <th>Ngày mượn</th>
                     <th>Hạn trả</th>
+                    <th>Mã QR</th>
 
                 </tr>
                 </thead>
@@ -44,7 +45,7 @@
                 {% for item in borrow_list %}
                 <tr>
                     <td><strong>{{ item.book_title }}</strong></td>
-                    <td>{{ item.requested_at|localtime|date:"d /m/Y H:i" }}</td>
+                    <td>{{ item.requested_at|localtime|date:"d/m/Y H:i" }}</td>
                     <td>
                         {% if item.status == 'pending' %}
                         <span class="badge bg-warning text-dark">Chờ duyệt</span>
@@ -61,10 +62,16 @@
                     </td>
                     <td>{% if item.due_date %}{{ item.due_date|localtime|date:"d/m/Y" }}{% else %}-{% endif %}</td>
                     </td>
+                    <td>
+                        {% if item.status == 'pending' or item.status == 'borrowed' %}
+                        <img src="{% url 'borrowQR' item.id %}" width="90" alt="QR">
+                        {% else %}-{% endif %}
+                    </td>
+
                 </tr>
                 {% empty %}
                 <tr>
-                    <td colspan="5" class="text-center text-muted py-4">
+                    <td colspan="6" class="text-center text-muted py-4">
                         Bạn chưa mượn cuốn nào. <a href="{% url 'books' %}">Xem tủ sách</a>
                     </td>
                 </tr>

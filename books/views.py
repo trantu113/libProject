@@ -1,4 +1,6 @@
+import io
 import re
+import qrcode
 from datetime import datetime, timezone, timedelta
 
 from bson import ObjectId
@@ -8,7 +10,8 @@ from django.contrib.admin.views.decorators import staff_member_required
 from django.contrib.auth import login
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.forms import UserCreationForm
-from django.http import Http404
+from django.http import Http404, HttpResponse
+from django.urls import reverse
 from django.shortcuts import render, redirect
 
 from books.db import books_collection, borrows_collection
@@ -290,3 +293,37 @@ def borrowHistory(request):
         history_list.append(item)
 
     return render(request, 'books/borrow_history.html', {'history_list': history_list})
+
+# qr code
+
+@login_required
+def borrowQR(request, borrow_id):
+    try:
+        borrow = borrows_collection.find_one({'_id': ObjectId(borrow_id)})
+    except InvalidId:
+        raise Http404
+    if borrow is None:
+        raise Http404
+
+    if borrow['user_id'] != request.user.id and not request.user.is_staff:
+        raise Http404
+
+    url = request.build_absolute_uri(reverse('borrowScan', args=[borrow_id]))
+
+    img = qrcode.make(url)
+    buf = io.BytesIO()
+    img.save(buf, format='PNG')
+
+    return HttpResponse(buf.getvalue(), content_type='image/png')
+
+@staff_member_required
+def borrowScan(request, borrow_id):
+    try:
+        borrow = borrows_collection.find_one({'_id': ObjectId(borrow_id)})
+    except InvalidId:
+        raise Http404
+    if borrow is None:
+        raise Http404
+
+    borrow['id'] = str(borrow['_id'])
+    return render(request, 'books/borrow_scan.html', {'item': borrow})
